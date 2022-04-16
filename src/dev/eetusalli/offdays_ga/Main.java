@@ -19,7 +19,7 @@ public class Main {
      * making the program.
      */
     public static void main(String[] args) {
-        Config config = new Config("conf2.txt");
+        Config config = new Config("conf.txt");
         config.printConfig();
         GA ga = new GA(config);
         ga.run();

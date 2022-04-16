@@ -38,6 +38,34 @@ public class GA {
 
 
             Collections.sort(population);
+            Chromosome best = population.get(0);
+
+            if (best.getFitness().compareTo(best_fitness) == -1){
+                System.out.println("Best: " + best.fitnessToString() + " on round " + counter);
+                best_fitness.soft_breaks = best.getFitness().soft_breaks;
+                best_fitness.hard_breaks = best.getFitness().hard_breaks;
+                //   A.printFitnessPerRow();
+                //  best_result = new Chromosome(A);
+                //    best_result.setFitness(A.getFitness());
+                if (best_fitness.hard_breaks == 0){
+                    best.printChromosome();
+                    best.printConstraintCosts();
+                }
+                best_result.copyChromosome(best);
+
+                best.setFitness();
+                System.out.println("Best1: " + best_result.fitnessToString() + " on round " + counter);
+                best_result.setFitness();
+                System.out.println("Best2: " + best_result.fitnessToString() + " on round " + counter);
+                best.setFitness();
+                System.out.println("Best3: " + best.fitnessToString() + " on round " + counter);
+
+                //    best_result.printFitnessPerRow();
+                //  System.exit(12);
+//                if (best_fitness.hard_breaks <= 1 && best_fitness.soft_breaks <= 120){
+//                    A.printChromosome();
+//                }
+            }
 
             int A_int;
             int B_int;
@@ -70,19 +98,7 @@ public class GA {
 
             }
 
-            if (A.getFitness().compareTo(best_fitness) == -1){
-                System.out.println("Best: " + A.fitnessToString() + " on round " + counter);
-                best_fitness.soft_breaks = A.getFitness().soft_breaks;
-                best_fitness.hard_breaks = A.getFitness().hard_breaks;
-             //   A.printFitnessPerRow();
-                best_result = new Chromosome(A);
-                best_result.setFitness(A.getFitness());
-            //    best_result.printFitnessPerRow();
-              //  System.exit(12);
-//                if (best_fitness.hard_breaks <= 1 && best_fitness.soft_breaks <= 120){
-//                    A.printChromosome();
-//                }
-            }
+
            // Chromosome C = population.get(population.size()-1);
           //  System.out.println("C before: " + population.get(population.size()-1).fitnessToString());
             population.get(population.size()-1).makeAChildOf(A,B);
@@ -110,11 +126,13 @@ public class GA {
 //            }
 
             counter++;
-            if (counter >= 1000000){
+            if (counter >= 100000){
                 System.out.println("Best: Hard: " + best_fitness.hard_breaks + ", soft: " + best_fitness.soft_breaks + ". End round " + counter);
                 best_result.printChromosome();
                 System.out.println(best_result.fitnessToString());
-                best_result.printFitnessPerRow();
+            //    best_result.printFitnessPerRow();
+
+                best_result.setFitness();
                 best_result.printConstraintCosts();
                 break;
             }
@@ -134,6 +152,7 @@ public class GA {
                 System.out.println("Fitness: " + population.get(population.size()-1).fitnessToString());
             }
         }
+        best_result = new Chromosome(cfg);
         System.out.println("Initialized population of " + population.size());
 
     }

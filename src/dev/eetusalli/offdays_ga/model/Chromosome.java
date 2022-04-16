@@ -46,24 +46,27 @@ public class Chromosome implements Comparable<Chromosome>{
     public Chromosome(Config cfg, int seed){
         this.cfg = cfg;
         this.employee_size = cfg.getEmployees_amount();
+        this.total_days = cfg.getTotal_days();
+        fitness = new Fitness(employee_size);
         initializeConstraints();
         initializeRandomChromosome(seed);
         setFitness();
     }
 
+
     /**
-     * Poor man's copy constructor
-     * Doesn't actually work since constraints aren't copied or initialized, only used to track best chromosome
+     * Not a real copy, only for tracking best result
+     * @param other chromosome to copy from
      */
-    public Chromosome(Chromosome other){
-        this.cfg = other.cfg;
-        this.chromosome = new ArrayList<>();
-        this.employee_size = cfg.getEmployees_amount();
-        this.total_days = cfg.getTotal_days();
-        fitness = new Fitness(cfg.getEmployees_amount());
-        for (List<Integer> row : other.getChromosome()){
-            this.chromosome.add(row);
+    public void copyChromosome(Chromosome other){
+        this.chromosome = new ArrayList<List<Integer>>();
+        for (int i = 0; i < other.chromosome.size();  i++){
+            chromosome.add(new ArrayList<>());
+            for (int j = 0; j < other.chromosome.get(0).size(); j++){
+                chromosome.get(i).add(new Integer(other.chromosome.get(i).get(j)));
+            }
         }
+        this.setFitness(other.fitness);
     }
 
 

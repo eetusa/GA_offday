@@ -41,6 +41,7 @@ public abstract class Constraint {
     abstract public void initializeCost (Chromosome chromosome);
     abstract public void updateCost ();
 
+    public void setCost(int cost){this.cost = cost;}
     public int getCost () {
         return cost;
     }
