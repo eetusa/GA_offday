@@ -11,9 +11,9 @@ public class ConstraintConfig {
     private String constraintName;
     private float multiplier;
     private String constraintType;
-    int value = -1;
+    private int value = -1;
 
-    List<Integer> values = new ArrayList<>();
+    List<Integer> values;
     public List<Integer> getValues() {
         return values;
     }

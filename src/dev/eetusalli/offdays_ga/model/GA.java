@@ -15,10 +15,6 @@ import java.util.concurrent.ThreadLocalRandom;
 public class GA {
 
     private Config cfg;
-
-//    private List<Employee> employees = new ArrayList<>();
-//    private int employee_size;
-//    private int total_days;
     private List<Chromosome> population;
     private Chromosome best_result;
     private Fitness best_fitness;
@@ -26,116 +22,91 @@ public class GA {
     public GA(Config cfg){
         this.cfg = cfg;
         this.best_fitness = new Fitness(cfg.getEmployees_amount());
-        initializePopulation(-1);
+        initializePopulation(-1);   // -1 for random seed
     }
 
     public void run(){
         int counter = 0;
-        int combine_from_n_best = 6;
 
         while (true){
-
-
-
+            // Sort by fitness
             Collections.sort(population);
             Chromosome best = population.get(0);
 
+            // if new best found
             if (best.getFitness().compareTo(best_fitness) == -1){
                 System.out.println("Best: " + best.fitnessToString() + " on round " + counter);
                 best_fitness.soft_breaks = best.getFitness().soft_breaks;
                 best_fitness.hard_breaks = best.getFitness().hard_breaks;
-                //   A.printFitnessPerRow();
-                //  best_result = new Chromosome(A);
-                //    best_result.setFitness(A.getFitness());
-                if (best_fitness.hard_breaks == 0){
-                    best.printChromosome();
-                    best.printConstraintCosts();
-                }
-                best_result.copyChromosome(best);
-
-                best.setFitness();
-                System.out.println("Best1: " + best_result.fitnessToString() + " on round " + counter);
-                best_result.setFitness();
-                System.out.println("Best2: " + best_result.fitnessToString() + " on round " + counter);
-                best.setFitness();
-                System.out.println("Best3: " + best.fitnessToString() + " on round " + counter);
-
-                //    best_result.printFitnessPerRow();
-                //  System.exit(12);
-//                if (best_fitness.hard_breaks <= 1 && best_fitness.soft_breaks <= 120){
-//                    A.printChromosome();
-//                }
+                best_result.copyChromosome(best); // Create a 'fake' copy of the best found
             }
 
-            int A_int;
-            int B_int;
-            int C_int;
-            int D_int;
-
+            // Cross-over **********************************************************************
+            // Combine from top N chromosomes with weighted probability favoring better specimen
+            // Hard coded to create two children.
             List<Integer> helper = new ArrayList<>();
-            for (int i = 0; i < combine_from_n_best; i++){
-                for (int j = 0; j < (combine_from_n_best-i); j++){
+            for (int i = 0; i < cfg.getCombine_from_best_of_n(); i++){
+                for (int j = i; j < cfg.getCombine_from_best_of_n(); j++){
                     helper.add(i);
                 }
             }
-
-            while (true){
-                A_int = ThreadLocalRandom.current().nextInt(0, helper.size());
-                B_int = ThreadLocalRandom.current().nextInt(0, helper.size());
-                C_int = ThreadLocalRandom.current().nextInt(0, helper.size());
-                D_int = ThreadLocalRandom.current().nextInt(0, helper.size());
-
-                if ((helper.get(A_int) != helper.get(B_int)) && (helper.get(C_int) != helper.get(D_int))) break;
-            }
-            Chromosome A = population.get(helper.get(A_int));
-            Chromosome B = population.get(helper.get(B_int));
-            Chromosome C = population.get(helper.get(C_int));
-            Chromosome D = population.get(helper.get(D_int));
-
-            if (counter % 1000000 == 0){
-                System.out.println(counter + "..");
-                A.printChromosome();
-
+            int a;
+            int b;
+            int c;
+            int d;
+            while(true){
+                a = ThreadLocalRandom.current().nextInt(0, helper.size());
+                b = ThreadLocalRandom.current().nextInt(0, helper.size());
+                c = ThreadLocalRandom.current().nextInt(0, helper.size());
+                d = ThreadLocalRandom.current().nextInt(0, helper.size());
+                if ( (helper.get(a) != helper.get(b)) && (helper.get(c) != helper.get(d)))  break;
             }
 
+            if (ThreadLocalRandom.current().nextFloat() < cfg.getCross_p()){
+                Chromosome A = population.get(helper.get(a));
+                Chromosome B = population.get(helper.get(b));
+                population.get(population.size()-1).makeAChildOf(A,B);
+            }
+            if (ThreadLocalRandom.current().nextFloat() < cfg.getCross_p()){
 
-           // Chromosome C = population.get(population.size()-1);
-          //  System.out.println("C before: " + population.get(population.size()-1).fitnessToString());
-            population.get(population.size()-1).makeAChildOf(A,B);
-            population.get(population.size()-2).makeAChildOf(C,D);
-       //     System.out.println("C after: " + population.get(population.size()-1).fitnessToString());
-            if (ThreadLocalRandom.current().nextFloat() < cfg.getMut_p()){
-               // System.out.println("Mutating1..");
-                population.get(population.size()-1).mutate();
+                Chromosome C = population.get(helper.get(c));
+                Chromosome D = population.get(helper.get(d));
+                population.get(population.size()-2).makeAChildOf(C,D);
             }
-            if (ThreadLocalRandom.current().nextFloat() < cfg.getMut_p()){
-                // System.out.println("Mutating1..");
-                population.get(population.size()-2).mutate();
-            }
-            for (int i = 0; i < population.size()-1; i++){
-                if (ThreadLocalRandom.current().nextFloat() < cfg.getMut_p()){
-                 //   System.out.println("Mutating2..");
-                    population.get(i).mutate();
+            // ********************************************************************************
+
+            // Mutate *************************************
+            if (cfg.isDo_mutate_whole_population()){
+                for (int i = 0; i < population.size(); i++){
+                    if (ThreadLocalRandom.current().nextFloat() < cfg.getMut_p()){
+                        population.get(i).mutate();
+                    }
+                }
+            } else{
+                for (int i = 0; i < cfg.getCombine_n_children(); i++){
+                    if (ThreadLocalRandom.current().nextFloat() < cfg.getMut_p()){
+                        population.get(population.size()-1-i).mutate();
+                    }
                 }
             }
-//            if (counter > 3000000){
-//                System.out.println("Best: " + A.fitnessToString() + " on round " + counter);
-//                A.printChromosome();
-//                A.printFitnessPerRow();
-//                break;
-//            }
+            // ********************************************
 
-            counter++;
-            if (counter >= 100000){
+
+            // end condition (#END_TYPE second parameter (int) in configuration)
+            if (counter >= cfg.getEnd_value()){
                 System.out.println("Best: Hard: " + best_fitness.hard_breaks + ", soft: " + best_fitness.soft_breaks + ". End round " + counter);
                 best_result.printChromosome();
                 System.out.println(best_result.fitnessToString());
-            //    best_result.printFitnessPerRow();
-
                 best_result.setFitness();
                 best_result.printConstraintCosts();
                 break;
             }
+
+            if (counter % 1000000 == 0){
+                System.out.println(counter + "..");
+                best.printConstraintCosts();
+            }
+            counter++;
         }
     }
 

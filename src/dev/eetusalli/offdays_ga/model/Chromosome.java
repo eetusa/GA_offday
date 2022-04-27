@@ -4,7 +4,6 @@ import dev.eetusalli.offdays_ga.config.Config;
 import dev.eetusalli.offdays_ga.config.ConstraintConfig;
 import dev.eetusalli.offdays_ga.constraints.*;
 import dev.eetusalli.offdays_ga.util.Util;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,7 +18,6 @@ public class Chromosome implements Comparable<Chromosome>{
     private int employee_size;
     private int total_days;
     private Fitness fitness;
-
     public List<List<Integer>> getChromosome(){
         return this.chromosome;
     }
@@ -59,7 +57,7 @@ public class Chromosome implements Comparable<Chromosome>{
      * @param other chromosome to copy from
      */
     public void copyChromosome(Chromosome other){
-        this.chromosome = new ArrayList<List<Integer>>();
+        this.chromosome = new ArrayList<>();
         for (int i = 0; i < other.chromosome.size();  i++){
             chromosome.add(new ArrayList<>());
             for (int j = 0; j < other.chromosome.get(0).size(); j++){
@@ -72,13 +70,14 @@ public class Chromosome implements Comparable<Chromosome>{
 
 
     /**
-     * Method to call when 'repurposing' an old chromosome to make a child of two parents
+     * Method to call when 'repurposing' an old chromosome to make a child of two parent.
+     * The fitness of the combined child isn't 'updated' but totally recalculated currently.
      * @param A Parent_a
      * @param B Barent_b
      */
     public void makeAChildOf(Chromosome A, Chromosome B){
         if (ThreadLocalRandom.current().nextFloat() < 0.05){
-            this.chromosome = combineParents(A,B);  // random combination (vaiko day combine tähän?
+            this.chromosome = combineParents(A,B);  // random combination
         } else {
             this.chromosome = combineParentsPerBestRow(A, B);   // weighted combination to value fitness per row
         }
@@ -87,16 +86,17 @@ public class Chromosome implements Comparable<Chromosome>{
 
     /**
      * Create a matrix (chromosome) out of two parents.
-     * Combines employees (rows) from best fitness rows from each
+     * Combines employees (rows) from the best fitness rows from each
      * @param A Parent_a
      * @param B Parent_b
      * @return Resulting child chromosome
      */
     private List<List<Integer>> combineParentsPerBestRow(Chromosome A, Chromosome B){
         List<List<Integer>> result = new ArrayList<>();
-        List<Integer> fitnessRowCompare = Util.getFitRowOrder(A,B);
+        List<Integer> heritage_tracking = Util.getFitRowOrder(A,B);
+
         for (int i = 0; i < employee_size; i++){
-            if (fitnessRowCompare.get(i) == 0){
+            if (heritage_tracking.get(i) == 0){
                 result.add(new ArrayList<>());
                 for (int j = 0; j < total_days; j++){
                     result.get(i).add(new Integer(A.getChromosome().get(i).get(j)));
@@ -152,111 +152,118 @@ public class Chromosome implements Comparable<Chromosome>{
         return result;
     }
 
-    private List<List<Integer>> combineParentsDays(Chromosome A, Chromosome B){
-        List<List<Integer>> result = new ArrayList<>();
-        for (int i = 0; i < employee_size; i++){
-            result.add(new ArrayList<Integer>(Collections.nCopies(total_days, 0)));
-        }
 
-        int parent_A_counter = 0;
-        int parent_B_counter = 0;
+    /**
+     * Updates fitness. Implicitly assumes that on the given employy/day (row/column) the value has changed.
+     * Has to be called every time a single value has changed since it relies on this implicit knowledge.
+     * @param employee  Row
+     * @param day   Column
+     */
+    public void updateFitness(int employee, int day){
+        fitness.soft_breaks = 0;
+        fitness.hard_breaks = 0;
+        for (Constraint c : constraints){
+            c.updateCost(employee, day, chromosome);
+            float total = c.getConstraintConfig().getMultiplier() * c.getCost();
 
-        for (int i = 0; i < total_days; i++){
-            boolean addToParentA = ThreadLocalRandom.current().nextBoolean();
-            Chromosome current_parent;
-            if (addToParentA){
-                if (parent_A_counter < total_days / 2){
-                    current_parent = A;
-                    parent_A_counter++;
-                } else {
-                    current_parent = B;
-                    parent_B_counter++;
+            // hack-y solution to weight hard constraint breaks with a multiplier of ten
+            if (c.getConstraintConfig().getConstraintType().equals("H")){
+                fitness.hard_breaks += total;
+                for (int i = 0; i < c.costPerRow.size(); i++){
+                    fitness.per_row.set(i, new Float(fitness.per_row.get(i) + Math.abs(c.costPerRow.get(i)) * c.getConstraintConfig().getMultiplier() * 10));
                 }
-            }  else{
-                if (parent_B_counter < total_days / 2 +  1){
-                    current_parent = B;
-                    parent_B_counter++;
-                } else{
-                    current_parent = A;
-                    parent_A_counter++;
+
+            }
+            else{
+                fitness.soft_breaks += total;
+                for (int i = 0; i < c.costPerRow.size(); i++){
+                    fitness.per_row.set(i, new Float(fitness.per_row.get(i) + Math.abs(c.costPerRow.get(i)) * c.getConstraintConfig().getMultiplier()));
                 }
             }
-            for (int j = 0; j < employee_size; j++){
-                chromosome.get(j).set(i, new Integer(current_parent.getChromosome().get(j).get(i)));
-            }
-
         }
-        return result;
     }
 
-
-    // not ready
-    public void updateFitness(){
+    /**
+     * Recalculates this chromosome's fitness from scratch.
+     */
+    public void setFitness(){
+        fitness.soft_breaks = 0;
+        fitness.hard_breaks = 0;
+        fitness.per_row = new ArrayList<Float>(Collections.nCopies(employee_size,0f));
         for (Constraint c : constraints){
-            c.updateCost();
+            c.initializeCost(this);
             float total = c.getConstraintConfig().getMultiplier() * c.getCost();
-            System.out.println("Constraint " + c.getConstraintConfig().getConstraintName() + " cost: " + c.getCost() + " and total cost: " + total);
-            if (c.getConstraintConfig().getConstraintType().equals("H")) fitness.hard_breaks += total;
-            else fitness.soft_breaks += total;
+
+            // Tracking fitness per row by getting cost per row from each constraint. Cheated by just using a multiplier of 10 to weight up hard constraint costs.
+            if (c.getConstraintConfig().getConstraintType().equals("H")){
+                fitness.hard_breaks += total;
+                for (int i = 0; i < c.costPerRow.size(); i++){
+                    fitness.per_row.set(i, new Float(fitness.per_row.get(i) + Math.abs(c.costPerRow.get(i)) * c.getConstraintConfig().getMultiplier() * 10));
+                }
+            }
+            else{
+                fitness.soft_breaks += total;
+                for (int i = 0; i < c.costPerRow.size(); i++){
+                    fitness.per_row.set(i, new Float(fitness.per_row.get(i) + Math.abs(c.costPerRow.get(i)) * c.getConstraintConfig().getMultiplier()));
+                }
+            }
         }
-        System.out.println("Fitness set. Hard breaks: " + fitness.hard_breaks + ", soft breaks: " + fitness.soft_breaks);
     }
 
 
     /**
-     * Swap work and off days between two random employees and days
+     *  Mutates a given chromosome. In 1/100 cases it only swaps two values from two employees
+     *  from the same day (same column). 99/100 of the time it randomly "turns a bit" from the matrix.
+     *  In five percent of the 99/100 it swaps another bit. Haven't tested if this brings any value.
+     *
+     *  This method probably could benefit from changing the probabilities during run time
+     *  (Simulated annealing or something else)
      */
     public void mutate(){
         if (ThreadLocalRandom.current().nextFloat() < 0.01){
-            // find random employee and day
-
-
-            // swap it with random employee and day (that isn't the same) that has opposite value of isWorkday
-
             int e;
             int o_e;
             int d = ThreadLocalRandom.current().nextInt(0, total_days);
+            int ed_value;
+            int oed_value;
 
+            // make sure two different employees
             while (true){
                 e = ThreadLocalRandom.current().nextInt(0, employee_size);
                 o_e = ThreadLocalRandom.current().nextInt(0, employee_size);
                 if (e != o_e) break;
             }
+            ed_value = chromosome.get(e).get(d);
+            oed_value = chromosome.get(o_e).get(d);
 
-
-            int ed_value = chromosome.get(e).get(d);
-            int oed_value = chromosome.get(o_e).get(d);
-
-
-
-            chromosome.get(e).set(d, oed_value);
-            chromosome.get(o_e).set(d, ed_value);
-
-
+            // don't mutate at all if both employees have same value on same day
+            if (ed_value != oed_value){
+                chromosome.get(e).set(d, oed_value);
+              updateFitness(e, d);
+                chromosome.get(o_e).set(d, ed_value);
+               updateFitness(o_e, d);
+            }
         } else {
+            // swap a random "bit" in the matrix
             int e = ThreadLocalRandom.current().nextInt(0, employee_size);
             int d = ThreadLocalRandom.current().nextInt(0, total_days);
             int ed_value = chromosome.get(e).get(d);
-
             chromosome.get(e).set(d, Math.abs(ed_value - 1));
+           updateFitness(e, d);
 
+            // in same cases swap again
             if (ThreadLocalRandom.current().nextFloat() < 0.05){
                 e = ThreadLocalRandom.current().nextInt(0, employee_size);
                 d = ThreadLocalRandom.current().nextInt(0, total_days);
                 ed_value = chromosome.get(e).get(d);
-
                 chromosome.get(e).set(d, Math.abs(ed_value - 1));
+              updateFitness(e, d);
             }
         }
-
-        setFitness();
-
-
-
-
-
+       // setFitness();
     }
 
+    // Used to save the best fitness in GA
     public void setFitness(Fitness fit){
         this.fitness.soft_breaks = fit.soft_breaks;
         this.fitness.hard_breaks = fit.hard_breaks;
@@ -264,32 +271,8 @@ public class Chromosome implements Comparable<Chromosome>{
         this.fitness.per_row.addAll(fit.per_row);
     }
 
-
-    public void setFitness(){
-        fitness.soft_breaks = 0;
-        fitness.hard_breaks = 0;
-        //   result.add(new ArrayList<Integer>(Collections.nCopies(total_days, 0)));
-        fitness.per_row = new ArrayList<Float>(Collections.nCopies(employee_size,0f));
-        for (Constraint c : constraints){
-            c.initializeCost(this);
-            float total = c.getConstraintConfig().getMultiplier() * c.getCost();
-
-            // Tracking fitness per row. Cheated by just using a multiplier of 10 to weight up hard constraint costs.
-            if (c.getConstraintConfig().getConstraintType().equals("H")){
-                fitness.hard_breaks += total;
-                for (int i = 0; i < c.costPerRow.size(); i++){
-                    fitness.per_row.set(i, new Float(fitness.per_row.get(i) + c.costPerRow.get(i) * c.getConstraintConfig().getMultiplier() * 10));
-                }
-
-            }
-            else{
-                fitness.soft_breaks += total;
-                for (int i = 0; i < c.costPerRow.size(); i++){
-                    fitness.per_row.set(i, new Float(fitness.per_row.get(i) + c.costPerRow.get(i) * c.getConstraintConfig().getMultiplier()));
-                }
-            }
-        }
-    }
+    // Rest of the methods are boilerplate or for testing.
+    // ***************************************************
 
     private void initializeRandomChromosome(long seed){
         Random rand = new Random();
@@ -313,11 +296,9 @@ public class Chromosome implements Comparable<Chromosome>{
                 if (seed != -1){
                     e = rand.nextInt(employee_size);
                 } else {
-                    e = ThreadLocalRandom.current().nextInt(0, employee_size); // ThreadLocalRandom better for parallel computation
+                    e = ThreadLocalRandom.current().nextInt(0, employee_size);
                 }
                 chromosome.get(e).set(i, 1);
-               // System.out.println("Value on day " +i + " on employee " + e +": " + chromosome.get(e).get(i));
-              //  printChromosome();
             }
         }
 

@@ -36,8 +36,27 @@ public class DBDO extends Constraint {
         cost = offense_count;
     }
 
+    /**
+     * Simply recounts the cost of the whole row.
+     * @param employee
+     * @param day
+     * @param chromosome
+     */
     @Override
-    public void updateCost() {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public void updateCost(int employee, int day, List<List<Integer>> chromosome) {
+        int row_cost = costPerRow.get(employee);
+        int dbdo = 0;
+        int new_row_cost = 0;
+        for (int j = 0; j < appCfg.getTotal_days(); j++){
+            boolean isWorkDay = (chromosome.get(employee).get(j) == 1) ? true : false;
+            if (isWorkDay) dbdo++;
+            else dbdo = 0;
+            if (dbdo > cfg.getValue()){
+                new_row_cost++;
+            }
+        }
+        costPerRow.set(employee, new_row_cost);
+        cost = cost + (new_row_cost - row_cost);
+
     }
 }

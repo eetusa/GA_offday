@@ -23,6 +23,9 @@ public class Config {
     private float mut_p;
     private String end_type;
     private int end_value;
+    private int combine_from_best_of_n;
+    private int combine_n_children;
+    private boolean do_mutate_whole_population;
 
     private List<Employee> employees = new ArrayList<>();
     private List<Integer> employee_offdays = new ArrayList<>();
@@ -91,17 +94,24 @@ public class Config {
                                         this.end_value = Integer.parseInt(parameter_and_value[2]);
                                     }
                                     break;
+                                case "COMBINE_FROM_BEST_OF_N":
+                                    this.combine_from_best_of_n = Integer.parseInt(value);
+                                    break;
+                                case "COMBINE_N_CHILDREN":
+                                    this.combine_n_children = Integer.parseInt(value);
+                                    break;
+                                case "MUTATE_WHOLE_POPULATION":
+                                    this.do_mutate_whole_population = parameter_and_value[1].equals("1") ? true : false;
+                                    break;
                                 default: // constraints
                                     if (parameter_and_value.length == 3){
                                         String constraintName = parameter.split(":")[1];
                                         String constraintType = parameter_and_value[1];
-                                        boolean isEnabled = parameter_and_value[2].equals("1") ? true : false;
                                         float multiplier = Float.parseFloat(parameter_and_value[2]);
                                         constraintConfigList.add(new ConstraintConfig(constraintName, constraintType, multiplier));
                                     } else if (parameter_and_value.length == 4){
                                         String constraintName = parameter.split(":")[1];
                                         String constraintType = parameter_and_value[1];
-                                        boolean isEnabled = parameter_and_value[2].equals("1") ? true : false;
                                         float multiplier = Float.parseFloat(parameter_and_value[2]);
                                         int confValue = Integer.parseInt(parameter_and_value[3]);
                                         constraintConfigList.add(new ConstraintConfig(constraintName, constraintType, multiplier, confValue));
@@ -201,6 +211,8 @@ public class Config {
         System.out.println("Crossover probability:\t\t" + cross_p);
         System.out.println("Mutation probability:\t\t" + mut_p);
         System.out.println("End type and value:\t\t\t" + end_type + " " + end_value);
+        System.out.println("Mutate whole population:\t" + do_mutate_whole_population);
+        System.out.println("Combine from best of n:\t\t" + combine_from_best_of_n);
         for (ConstraintConfig cfg : constraintConfigList){
             System.out.println(cfg.toString());
         }
@@ -262,5 +274,25 @@ public class Config {
     public int getTotal_days(){
         return this.total_days;
     }
+
+    public int getCombine_from_best_of_n(){
+        return this.combine_from_best_of_n;
+    }
+    public int getCombine_n_children(){
+        return this.combine_n_children;
+    }
+
+    public boolean isDo_mutate_whole_population(){
+        return this.do_mutate_whole_population;
+    }
+
+    public int getEnd_value(){
+        return this.end_value;
+    }
+
+    public float getCross_p(){
+        return this.cross_p;
+    }
+
 
 }
